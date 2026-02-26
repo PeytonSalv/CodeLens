@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Rust
+src-tauri/target/
+
+# Mojo
+mojo-engine/.pixi/
+mojo-engine/build/
+mojo-engine/pixi.lock
+
+# ML models (large files — download via script)
+mojo-engine/src/models/*.onnx
+
+# Environment
+.env
+.env.local
+
+# Cache
+*.local
+.codelens/
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*

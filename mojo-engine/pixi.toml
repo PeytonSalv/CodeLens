@@ -1,0 +1,12 @@
+[workspace]
+authors = ["Peyton Salvant <peytonsalvant5461@outlook.com>"]
+channels = ["https://conda.modular.com/max-nightly", "conda-forge"]
+name = "mojo-engine"
+platforms = ["osx-arm64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+mojo = ">=0.26.2.0.dev2026022505,<0.27"
+max = ">=26.2.0.dev2026022505,<27"

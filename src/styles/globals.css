@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+@theme {
+  /* Neutral palette — zinc-based, not blue-tinted */
+  --color-surface-0: #09090b;
+  --color-surface-1: #111113;
+  --color-surface-2: #18181b;
+  --color-surface-3: #1f1f23;
+  --color-surface-4: #27272a;
+
+  --color-border: #27272a;
+  --color-border-subtle: #1f1f23;
+  --color-border-focus: #52525b;
+
+  --color-text-primary: #fafafa;
+  --color-text-secondary: #a1a1aa;
+  --color-text-tertiary: #71717a;
+  --color-text-muted: #52525b;
+
+  /* Accent — a warm neutral amber, not "AI purple" */
+  --color-accent: #e5a158;
+  --color-accent-hover: #d4944c;
+  --color-accent-muted: rgba(229, 161, 88, 0.12);
+
+  /* Semantic — change types */
+  --color-feature: #34d399;
+  --color-bugfix: #f87171;
+  --color-refactor: #60a5fa;
+  --color-perf: #fbbf24;
+  --color-style: #71717a;
+  --color-test: #a78bfa;
+  --color-docs: #2dd4bf;
+
+  /* Fonts */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Fira Code", ui-monospace, monospace;
+}
+
+/*
+ * Base resets
+ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-surface-4) transparent;
+}
+
+html {
+  background-color: var(--color-surface-0);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+::selection {
+  background-color: var(--color-accent-muted);
+  color: var(--color-text-primary);
+}
+
+/*
+ * Utility classes
+ */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
