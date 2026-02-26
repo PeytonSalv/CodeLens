@@ -1,6 +1,5 @@
 import { cn } from "../../lib/utils";
 import { VIEWS, type ViewType } from "../../lib/constants";
-import { useProjectStore } from "../../store/projectStore";
 import { useProject } from "../../hooks/useProject";
 
 const NAV_ITEMS: { key: ViewType; label: string; shortcut: string }[] = [
@@ -17,21 +16,24 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentView, onViewChange }: SidebarProps) {
-  const activeProject = useProjectStore((s) => s.activeProject);
   const { scanRepository } = useProject();
 
   const handleOpen = async () => {
-    const { open } = await import("@tauri-apps/plugin-dialog");
-    const selected = await open({ directory: true });
-    if (selected) {
-      scanRepository(selected);
+    try {
+      const { open } = await import("@tauri-apps/plugin-dialog");
+      const selected = await open({ directory: true });
+      if (selected) {
+        await scanRepository(selected as string);
+      }
+    } catch (e) {
+      console.error("Dialog error:", e);
     }
   };
 
   return (
-    <aside className="flex w-52 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface-1)]">
-      <div className="flex h-12 items-center px-4 border-b border-[var(--color-border)] drag-region">
-        <span className="text-sm font-semibold tracking-tight no-drag">
+    <aside className="flex w-52 flex-col border-r border-zinc-800 bg-zinc-900/80">
+      <div className="flex h-12 items-center px-4 border-b border-zinc-800">
+        <span className="text-sm font-semibold tracking-tight text-zinc-100">
           CodeLens
         </span>
       </div>
@@ -41,27 +43,25 @@ export function Sidebar({ currentView, onViewChange }: SidebarProps) {
           <button
             key={item.key}
             onClick={() => onViewChange(item.key)}
-            disabled={!activeProject}
             className={cn(
               "flex w-full items-center justify-between rounded-md px-3 py-1.5 text-[13px] transition-colors",
               currentView === item.key
-                ? "bg-[var(--color-surface-3)] text-[var(--color-text-primary)]"
-                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-2)] hover:text-[var(--color-text-primary)]",
-              !activeProject && "opacity-40 cursor-not-allowed"
+                ? "bg-zinc-800 text-zinc-100"
+                : "text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200"
             )}
           >
             <span>{item.label}</span>
-            <kbd className="text-[10px] text-[var(--color-text-muted)] font-mono">
+            <kbd className="text-[10px] text-zinc-600 font-mono">
               {item.shortcut}
             </kbd>
           </button>
         ))}
       </nav>
 
-      <div className="border-t border-[var(--color-border)] p-3">
+      <div className="border-t border-zinc-800 p-3">
         <button
           onClick={handleOpen}
-          className="flex w-full items-center justify-center rounded-md border border-[var(--color-border)] px-3 py-1.5 text-[13px] text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-border-focus)] hover:text-[var(--color-text-primary)]"
+          className="flex w-full items-center justify-center rounded-md border border-zinc-700 px-3 py-1.5 text-[13px] text-zinc-400 transition-colors hover:border-zinc-600 hover:text-zinc-200"
         >
           Open Repository
         </button>

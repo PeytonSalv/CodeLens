@@ -62,6 +62,21 @@ export interface Feature {
   primaryFiles: string[];
   changeTypeDistribution: Record<ChangeType, number>;
   dependencies: number[];
+  subFeatures: SubFeature[];
+}
+
+export interface SubFeature {
+  promptText: string;
+  sessionId: string;
+  promptIndex: number;
+  timestamp: string;
+  timeEnd: string | null;
+  commitHashes: string[];
+  filesWritten: string[];
+  linesAdded: number;
+  linesRemoved: number;
+  changeType: ChangeType;
+  model: string | null;
 }
 
 export interface PromptSession {
@@ -69,9 +84,22 @@ export interface PromptSession {
   promptText: string;
   timestamp: string;
   associatedCommitHashes: string[];
+  associatedFeatureIds: number[];
   similarityScore: number;
   scopeMatch: number;
   intent: string | null;
+  filesTouched: string[];
+  filesWritten: string[];
+  toolCallCount: number;
+  model: string | null;
+  tokenUsage: TokenUsage;
+  timeEnd: string | null;
+}
+
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
 }
 
 export interface Analytics {

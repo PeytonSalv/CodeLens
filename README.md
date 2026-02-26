@@ -1,25 +1,28 @@
 # CodeLens — Claude Code Feature Timeline Visualizer
 
-A desktop application that visualizes the features Claude Code has worked on across a repository, showing a rich timeline of features, functions modified, logic changes, and the prompts that drove them — powered by **Mojo** for high-performance local ML preprocessing and **Claude API** for semantic summarization.
+A desktop application that visualizes the features Claude Code has worked on across a repository, showing a rich timeline of features, functions modified, logic changes, and the prompts that drove them. CodeLens reads Claude Code's local session logs in real-time — **you don't even need to commit** for CodeLens to know what you're building.
 
 ---
 
 ## Table of Contents
 
 1. [Project Vision](#project-vision)
-2. [Architecture Overview](#architecture-overview)
-3. [Technology Stack](#technology-stack)
-4. [Directory Structure](#directory-structure)
-5. [Module 1: Mojo Preprocessing Engine](#module-1-mojo-preprocessing-engine)
-6. [Module 2: Local ML Pipeline (Mojo + MAX Engine)](#module-2-local-ml-pipeline-mojo--max-engine)
-7. [Module 3: Claude Semantic Layer](#module-3-claude-semantic-layer)
-8. [Module 4: Tauri Desktop Application](#module-4-tauri-desktop-application)
-9. [Data Models & Schemas](#data-models--schemas)
-10. [IPC & Communication Protocol](#ipc--communication-protocol)
-11. [Setup & Installation](#setup--installation)
-12. [Build & Run](#build--run)
-13. [Development Workflow](#development-workflow)
-14. [Roadmap](#roadmap)
+2. [Live Session Intelligence](#live-session-intelligence)
+3. [Architecture Overview](#architecture-overview)
+4. [Technology Stack](#technology-stack)
+5. [Directory Structure](#directory-structure)
+6. [Module 1: Git Scanning Pipeline](#module-1-git-scanning-pipeline)
+7. [Module 2: Claude Code Session Parser](#module-2-claude-code-session-parser)
+8. [Module 3: Prompt-to-Code Correlation](#module-3-prompt-to-code-correlation)
+9. [Module 4: Claude Semantic Layer](#module-4-claude-semantic-layer)
+10. [Module 5: Tauri Desktop Application](#module-5-tauri-desktop-application)
+11. [Data Models & Schemas](#data-models--schemas)
+12. [Claude Code JSONL Format](#claude-code-jsonl-format)
+13. [IPC & Communication Protocol](#ipc--communication-protocol)
+14. [Setup & Installation](#setup--installation)
+15. [Build & Run](#build--run)
+16. [Development Workflow](#development-workflow)
+17. [Roadmap](#roadmap)
 
 ---
 
@@ -29,12 +32,28 @@ Modern AI-assisted development with Claude Code generates rich, complex historie
 
 **CodeLens** solves this by:
 
-- **Parsing** git history and Claude Code session data at blazing speed using Mojo
-- **Embedding and clustering** code changes locally using MAX Engine + small ML models (no API calls for the heavy compute)
-- **Summarizing** features and extracting intent using the Claude API (only for what requires an LLM)
-- **Visualizing** everything in a beautiful, interactive desktop timeline built with Tauri + React
+- **Watching Claude Code sessions in real-time** — parsing `~/.claude/projects/` JSONL logs as they're written, so you see what's happening *before* anything is committed
+- **Correlating prompts to code** — linking what you asked ("add user auth") to exactly which files, functions, and commits resulted from that prompt
+- **Parsing git history** — scanning commit logs, file diffs, and Co-Authored-By markers to identify Claude Code contributions
+- **Visualizing everything** in a beautiful, interactive desktop timeline built with Tauri + React
+- **Summarizing** features and extracting intent using the Claude API (optional, for semantic enrichment)
 
-The result: open any repo, and instantly see a rich, navigable map of every feature Claude Code helped build — the prompts used, the functions touched, the logic patterns, and how it all connects.
+The result: open any repo, and instantly see a rich, navigable map of every feature Claude Code helped build — the prompts used, the functions touched, the logic patterns, and how it all connects. Even work-in-progress that hasn't been committed yet.
+
+---
+
+## Live Session Intelligence
+
+The killer feature of CodeLens is that **it doesn't depend on git commits**. Claude Code writes detailed session logs to disk in real-time as conversations happen. CodeLens watches these files and can show you:
+
+- **Active sessions** — what prompt is Claude working on right now?
+- **Files being touched** — which files has Claude read, written, or edited in the current session?
+- **Tool activity** — bash commands run, files created, searches performed
+- **Uncommitted work** — cross-reference session file touches with `git status` to show in-progress changes
+- **Token usage** — how many tokens each session consumed
+- **Session history** — browse all past sessions for a project, even ones that never resulted in a commit
+
+This means a developer can open CodeLens alongside Claude Code and get a live dashboard of what's happening, what was asked, and what's being built — all without waiting for a `git commit`.
 
 ---
 
@@ -50,55 +69,50 @@ The result: open any repo, and instantly see a rich, navigable map of every feat
 │  │  View        │  │  Cards       │  │  Explorer   │  │  Viewer   │ │
 │  └──────┬──────┘  └──────┬───────┘  └─────┬──────┘  └─────┬─────┘ │
 │         └────────────────┴────────────────┴──────────────┘         │
-│                              │ reads                                │
-│                     enriched_data.json                              │
-└─────────────────────────────┬───────────────────────────────────────┘
-                              │
-                   ┌──────────┴──────────┐
-                   │  Claude API Layer   │  Semantic enrichment:
-                   │  (TypeScript/Rust)  │  • Feature narratives
-                   │                     │  • Intent extraction
-                   │                     │  • Cross-feature links
-                   └──────────┬──────────┘
-                              │ reads
-                   ┌──────────┴──────────┐
-                   │  Mojo Engine        │  Local preprocessing:
-                   │  (Mojo + MAX)       │  • Git parsing
-                   │                     │  • Diff extraction
-                   │                     │  • Code embeddings
-                   │                     │  • Feature clustering
-                   │                     │  • Change classification
-                   └──────────┬──────────┘
-                              │ reads
-                   ┌──────────┴──────────┐
-                   │  Git Repository     │
-                   │  + Claude Code      │
-                   │    session logs     │
-                   └─────────────────────┘
+│                              │                                      │
+│                    ┌─────────┴──────────┐                           │
+│                    │  Rust Backend      │                           │
+│                    │  (Tauri Commands)  │                           │
+│                    └────┬─────────┬─────┘                           │
+└─────────────────────────┼─────────┼─────────────────────────────────┘
+                          │         │
+              ┌───────────┘         └───────────┐
+              │                                 │
+   ┌──────────┴──────────┐          ┌──────────┴──────────┐
+   │  Git Repository     │          │  Claude Code Logs   │
+   │                     │          │  ~/.claude/projects/ │
+   │  • git log          │          │                     │
+   │  • git diff-tree    │          │  • Session JSONL    │
+   │  • Co-Author tags   │          │  • Tool calls       │
+   │                     │          │  • Prompt text       │
+   └─────────────────────┘          │  • File touches     │
+                                    │  • Token usage       │
+                                    └─────────────────────┘
 ```
 
 ### Data Flow
 
 ```
-Step 1: User points CodeLens at a git repository
-Step 2: Mojo Engine runs (fast, local, offline):
-        a. Parse all git log output (commits, authors, timestamps, messages)
-        b. Extract diffs per commit (files changed, lines added/removed)
-        c. Parse function-level changes from diffs (AST-light extraction)
-        d. Detect Claude Code markers in commit messages / session logs
-        e. Extract prompts associated with each coding session
-        f. Generate code embeddings via MAX Engine (local CodeBERT ONNX)
-        g. Cluster related commits into "features" via k-means / DBSCAN
-        h. Classify each change: bug_fix | new_feature | refactor | perf | style
-        i. Compute prompt-to-output similarity scores
-        j. Output: preprocessed.json (structured, ML-enriched data)
-Step 3: Claude API Layer runs (selective, semantic):
-        a. Read preprocessed.json
-        b. For each feature cluster: generate plain-English narrative
-        c. For each prompt: extract developer intent
-        d. Identify cross-feature dependencies and connections
-        e. Output: enriched_data.json (final data for UI)
-Step 4: Tauri app loads enriched_data.json and renders the UI
+Path A — Git History Scan (on "Open Repository"):
+  1. User points CodeLens at a git repository
+  2. Rust backend runs git log + git diff-tree
+  3. Parses commits, classifies change types, detects Claude Code co-author markers
+  4. Groups commits into features by 4-hour time windows
+  5. Computes analytics (most modified files, change type distribution, velocity)
+  6. Returns full ProjectData to frontend → renders Timeline, Features, Analytics
+
+Path B — Live Session Monitoring (real-time, no commits needed):
+  1. Rust backend watches ~/.claude/projects/<project-hash>/ for JSONL changes
+  2. Parses session logs as they're written — extracts prompts, tool calls, file touches
+  3. Cross-references file touches with git status (uncommitted changes)
+  4. Streams live session data to frontend via Tauri events
+  5. Renders in "Live Sessions" view — shows active prompts, files being modified, progress
+
+Path C — Prompt-to-Code Correlation (connects A + B):
+  1. For each Claude Code session, extract: prompt text, timestamps, files written/edited
+  2. Match sessions to commits by: timestamp overlap + file path intersection
+  3. Link PromptSession → CommitData[] with confidence scores
+  4. Display in Prompt Explorer: "You asked X → Claude produced commits Y, Z"
 ```
 
 ---
@@ -107,22 +121,21 @@ Step 4: Tauri app loads enriched_data.json and renders the UI
 
 | Layer                  | Technology                | Purpose                                                                                 |
 | ---------------------- | ------------------------- | --------------------------------------------------------------------------------------- |
-| **Preprocessing**      | Mojo                      | High-performance git parsing with SIMD vectorization and zero-cost abstractions          |
-| **Local ML Inference** | MAX Engine (Mojo API)     | Load ONNX models natively in Mojo. Runs on Apple Silicon, NVIDIA, AMD                   |
-| **Local ML Algorithms**| Pure Mojo                 | K-means, cosine similarity, DBSCAN — native Mojo for max throughput                     |
-| **Semantic Layer**     | Claude API (Sonnet)       | Natural language summarization, intent extraction                                        |
-| **Desktop Shell**      | Tauri 2.x (Rust)         | Lightweight native desktop app with easy Mojo binary invocation                          |
+| **Backend**            | Rust (Tauri 2.x)         | Git parsing, JSONL session log parsing, file watching, orchestration                     |
+| **Local ML Inference** | Mojo + MAX Engine         | CodeBERT ONNX embeddings, SIMD-accelerated similarity computation                       |
+| **Local ML Algorithms**| Pure Mojo                 | K-means, cosine similarity, DBSCAN clustering — native Mojo for max throughput           |
+| **Session Parsing**    | Rust (`serde_json`)       | Parse Claude Code JSONL logs from `~/.claude/projects/`                                  |
+| **File Watching**      | Rust (`notify` crate)     | Real-time monitoring of Claude Code session files as they're written                     |
+| **Semantic Layer**     | Claude API (Sonnet)       | Natural language summarization, intent extraction, cross-feature connections              |
 | **Frontend UI**        | React + TypeScript        | Rich interactive timeline with a familiar developer experience                           |
-| **Visualization**      | D3.js + Recharts          | Timeline rendering, dependency graphs, heatmaps                                         |
 | **State Management**   | Zustand                   | Lightweight, minimal-boilerplate state management                                        |
 | **Styling**            | Tailwind CSS              | Rapid, consistent UI development                                                         |
 | **IPC**                | Tauri Commands (Rust-JS)  | Type-safe communication between frontend and backend                                     |
-| **Data Format**        | JSON (intermediate)       | Universal interchange between Mojo, Rust, and React layers                               |
 
 ### Version Requirements
 
-- **Mojo**: Latest stable (`modular install mojo`)
-- **MAX Engine**: Latest stable (`modular install max`)
+- **Mojo**: Latest stable (`modular install mojo`) — for ML pipeline (Phase 3+)
+- **MAX Engine**: Latest stable (`modular install max`) — for ONNX model inference
 - **Rust**: 1.75+
 - **Node.js**: 20+
 - **Tauri CLI**: 2.x (`cargo install tauri-cli`)
@@ -268,99 +281,124 @@ codelens/
 
 ---
 
-## Module 1: Mojo Preprocessing Engine
+## Module 1: Git Scanning Pipeline
 
 ### Purpose
 
-The Mojo engine is the performance backbone. It takes a raw git repository and produces a fully structured, ML-enriched JSON file that contains everything the UI needs (minus the natural language summaries from Claude).
+The Rust-native git scanner is the entry point for repository analysis. It takes a git repo path and produces a full `ProjectData` structure with commits, features, and analytics — no external dependencies beyond `git`.
 
-### 1.1 Git Parser (`git_parser.mojo`)
+### Implementation (`src-tauri/src/commands/scan.rs`)
 
 **Input:** Path to a git repository
-**Output:** Structured list of `CommitData` objects
+**Output:** `ProjectData` (commits, features, analytics)
 
-Responsibilities:
-- Execute `git log` via subprocess and parse the output using SIMD string operations
-- Extract commit hash, author, timestamp, subject, body, and files changed
-- Detect Claude Code commit patterns (auto-generated messages, session markers)
-- Look for `.claude/` directory or session JSON files in the repo
-
-**Performance Target:** Parse 10,000 commits in < 500ms
-
-```mojo
-struct CommitData:
-    var hash: String
-    var author_name: String
-    var author_email: String
-    var timestamp: Int64
-    var subject: String
-    var body: String
-    var files_changed: List[FileChange]
-    var is_claude_code: Bool
-    var session_id: Optional[String]
-
-struct FileChange:
-    var path: String
-    var lines_added: Int
-    var lines_removed: Int
-    var change_type: String  # "added", "modified", "deleted", "renamed"
-```
-
-### 1.2 Diff Extractor (`diff_extractor.mojo`)
-
-**Input:** List of `CommitData` + repository path
-**Output:** Enriched commits with function-level changes
-
-Parses unified diffs to extract hunks, function context from `@@` headers, and builds `FunctionChange` records per function touched. Supports Python, TypeScript/JavaScript, Rust, Go, Mojo, Java, C/C++, Swift, and Kotlin.
-
-**Performance Target:** Extract function-level changes from 10,000 commits in < 2 seconds
-
-### 1.3 Prompt Detector (`prompt_detector.mojo`)
-
-**Input:** Repository path + commit data
-**Output:** List of `PromptSession` linking prompts to commits
-
-Searches for Claude Code session data in `.claude/`, `CLAUDE.md`, commit messages, and session JSON files. Links prompts to commits by timestamp proximity, file overlap, and session ID matching.
+Pipeline:
+1. Validate `.git/` directory exists
+2. Run `git log --format=%H%x01%an%x01%ae%x01%aI%x01%s%x01%b%x00 --no-merges`
+3. Parse output into `CommitData` structs
+4. Run `git diff-tree --numstat` per commit for file-level stats
+5. Classify change type by commit message keywords (`fix` → `bug_fix`, `feat` → `new_feature`, etc.)
+6. Detect Claude Code commits by `Co-Authored-By: Claude` markers in commit body
+7. Group commits into features by 4-hour time window gaps
+8. Compute analytics: most modified files, change type distribution, Claude %, weekly velocity
+9. Detect languages from file extensions
+10. Return full `ProjectData` to frontend
 
 ---
 
-## Module 2: Local ML Pipeline (Mojo + MAX Engine)
+## Module 2: Claude Code Session Parser
 
 ### Purpose
 
-Run all compute-intensive ML operations locally for speed and offline capability.
+This is the core differentiator. Claude Code writes detailed JSONL session logs to `~/.claude/projects/` **in real-time** as conversations happen. CodeLens parses these logs to extract prompts, tool calls, and file touches — **even before any code is committed**.
 
-### 2.1 Code Embeddings (`embeddings.mojo`)
+### Session Log Location
 
-Uses CodeBERT (ONNX format) via MAX Engine to generate 768-dimensional embedding vectors for function diffs, commit messages, and prompt text. Supports batch processing for throughput.
+```
+~/.claude/projects/
+├── -Users-username-path-to-repo/          # Project directory (path-encoded)
+│   ├── <session-uuid>.jsonl               # One file per conversation session
+│   ├── <session-uuid>/
+│   │   └── subagents/
+│   │       └── agent-<id>.jsonl           # Subagent/parallel task logs
+│   └── <another-session>.jsonl
+```
 
-**Performance Target:** Embed 5,000 code snippets in < 10 seconds on Apple Silicon
+### What We Extract
 
-**Fallback:** TF-IDF vectorization in pure Mojo when ONNX models are unavailable.
+From each JSONL session file:
 
-### 2.2 Feature Clustering (`clustering.mojo`)
+| Data                | Source                                           |
+| ------------------- | ------------------------------------------------ |
+| **Prompt text**     | Lines with `type: "user"`, `message.role: "user"`, where `content` is a string |
+| **Files written**   | `tool_use` blocks where `name: "Write"` → `input.file_path` |
+| **Files edited**    | `tool_use` blocks where `name: "Edit"` → `input.file_path` |
+| **Files read**      | `tool_use` blocks where `name: "Read"` → `input.file_path` |
+| **Bash commands**   | `tool_use` blocks where `name: "Bash"` → `input.command` |
+| **Timestamps**      | `timestamp` field on every message (ISO 8601)    |
+| **Model used**      | `message.model` on assistant messages            |
+| **Token usage**     | `message.usage.input_tokens` + `output_tokens`   |
+| **Session ID**      | `sessionId` field (UUID)                         |
+| **Errors**          | `tool_result` blocks where `is_error: true`      |
 
-Two-phase approach: DBSCAN for initial density-based clustering, then K-means refinement on large clusters. Uses SIMD-accelerated cosine distance computation.
+### Live Monitoring
 
-### 2.3 Change Type Classifier (`classifier.mojo`)
+Using the Rust `notify` crate, CodeLens watches the project's session directory for:
+- **New `.jsonl` files** → new session started
+- **File modifications** → session in progress, new messages being written
+- **File size changes** → read new lines appended since last check
 
-Two modes:
-- **Rule-based:** Keyword matching on commit messages + diff pattern analysis
-- **ONNX model:** Fine-tuned DistilBERT classifier via MAX Engine
-
-Classifies commits as: `new_feature`, `bug_fix`, `refactor`, `performance`, `style`, `test`, or `documentation`.
-
-### 2.4 Prompt-to-Output Similarity (`similarity.mojo`)
-
-Scores how well Claude Code's output matched the developer's prompt intent using cosine similarity between prompt embeddings and commit diff embeddings.
-
-### 2.5 JSON Output
-
-The Mojo engine writes `preprocessed.json` containing all extracted and ML-enriched data — the contract between the Mojo engine and the Tauri/Claude layer. See [Data Models](#data-models--schemas) for the full schema.
+This enables a real-time "Live Sessions" view that updates as you talk to Claude Code.
 
 ---
 
-## Module 3: Claude Semantic Layer
+## Module 3: Prompt-to-Code Correlation
+
+### Purpose
+
+Connect the *intent* layer (what you asked Claude to do) with the *output* layer (what code actually changed). This works in two modes:
+
+### Mode A: Pre-Commit (Live)
+
+Before any commits exist:
+1. Parse active session JSONL for prompts and `Write`/`Edit` tool calls
+2. Extract file paths touched by Claude in the session
+3. Run `git diff --name-only` to get current uncommitted changes
+4. Cross-reference: files in both sets are "in-progress work from this prompt"
+5. Display: **"Prompt: 'add user auth' → modifying: src/auth.ts, src/middleware.ts (uncommitted)"**
+
+### Mode B: Post-Commit (Historical)
+
+After commits land:
+1. Parse all session JSONL files for the project
+2. For each session, extract: prompt text, timestamps, files written/edited
+3. For each Claude-authored commit (has `Co-Authored-By: Claude`), note: timestamp, files changed
+4. **Timestamp matching**: session active during `[commit_time - 5min, commit_time]` → likely match
+5. **File overlap**: intersection of session file touches and commit file changes → confidence boost
+6. Link `PromptSession` → `CommitData[]` with correlation confidence score
+7. Display in Prompt Explorer: **"You asked 'fix login bug' → produced commit abc123 (src/auth.ts +15 -3)"**
+
+### Correlation Confidence
+
+```
+score = 0.0
+
+# Timestamp overlap (session was active when commit was made)
+if session.time_start <= commit.timestamp <= session.time_end + 5min:
+    score += 0.5
+
+# File overlap (session touched same files as commit)
+overlap = len(session.files_touched & commit.files_changed) / len(commit.files_changed)
+score += overlap * 0.4
+
+# Co-author marker present
+if commit.is_claude_code:
+    score += 0.1
+```
+
+---
+
+## Module 4: Claude Semantic Layer
 
 ### Purpose
 
@@ -375,7 +413,7 @@ Model: `claude-sonnet-4-5-20250929` with rate limiting (max 5 concurrent request
 
 ---
 
-## Module 4: Tauri Desktop Application
+## Module 5: Tauri Desktop Application
 
 ### Views
 
@@ -501,6 +539,95 @@ interface Analytics {
   velocityByWeek: { week: string; features: number; commits: number }[];
 }
 ```
+
+---
+
+## Claude Code JSONL Format
+
+CodeLens parses Claude Code's native session log format. Each session is a `.jsonl` file where every line is a self-contained JSON object representing one conversation turn.
+
+### Message Types
+
+**User Prompt (what you typed):**
+```json
+{
+  "type": "user",
+  "sessionId": "1eae501e-e74d-4ded-861a-0f7e45886116",
+  "timestamp": "2026-02-25T23:17:53.198Z",
+  "cwd": "/path/to/repo",
+  "message": {
+    "role": "user",
+    "content": "add user authentication with JWT"
+  },
+  "uuid": "15abb5a3-b022-404b-9479-166ae0858f64",
+  "parentUuid": null
+}
+```
+
+**Assistant Tool Call (Claude writing/editing files):**
+```json
+{
+  "type": "assistant",
+  "timestamp": "2026-02-25T23:17:59.020Z",
+  "message": {
+    "role": "assistant",
+    "model": "claude-opus-4-6",
+    "content": [
+      {
+        "type": "tool_use",
+        "id": "toolu_017Q8yGwpcphTjuAgbbQyMEQ",
+        "name": "Write",
+        "input": {
+          "file_path": "/path/to/repo/src/auth.ts",
+          "content": "..."
+        }
+      }
+    ],
+    "usage": {
+      "input_tokens": 3,
+      "output_tokens": 250,
+      "cache_read_input_tokens": 18792
+    }
+  }
+}
+```
+
+**Tool Result:**
+```json
+{
+  "type": "user",
+  "timestamp": "2026-02-25T23:17:59.399Z",
+  "message": {
+    "role": "user",
+    "content": [
+      {
+        "type": "tool_result",
+        "tool_use_id": "toolu_017Q8yGwpcphTjuAgbbQyMEQ",
+        "content": "File written successfully",
+        "is_error": false
+      }
+    ]
+  }
+}
+```
+
+### Key Tool Names to Track
+
+| Tool Name | What It Means | Data Extracted |
+| --------- | ------------- | -------------- |
+| `Write`   | Claude created a new file | `input.file_path`, `input.content` |
+| `Edit`    | Claude modified an existing file | `input.file_path`, `input.old_string`, `input.new_string` |
+| `Read`    | Claude read a file for context | `input.file_path` |
+| `Bash`    | Claude ran a shell command | `input.command`, `input.description` |
+| `Glob`    | Claude searched for files | `input.pattern` |
+| `Grep`    | Claude searched file contents | `input.pattern`, `input.path` |
+| `Task`    | Claude spawned a subagent | `input.prompt` (subagent has its own JSONL) |
+
+### Session Identification
+
+- **Session ID**: UUID in `sessionId` field, also the filename (`<uuid>.jsonl`)
+- **Project**: Derived from directory name (path-encoded, e.g., `-Users-me-project` → `/Users/me/project`)
+- **Conversation thread**: `parentUuid` links messages into a chain; `isSidechain: true` marks subagent turns
 
 ---
 
@@ -643,28 +770,45 @@ mojo build src/main.mojo -o build/codelens-engine
 
 ## Development Workflow
 
-| Phase | Focus                 | Key Deliverables                                               |
-| ----- | --------------------- | -------------------------------------------------------------- |
-| 1     | Foundation            | Tauri + React scaffold, git parser, diff extractor, basic timeline |
-| 2     | Local ML              | MAX Engine integration, embeddings, clustering, classifier     |
-| 3     | Claude Integration    | API client, feature narratives, intent extraction, caching     |
-| 4     | Prompt Explorer       | Prompt detection, similarity scoring, prompt UI                |
-| 5     | Analytics & Polish    | Dashboard, function explorer, search, keyboard nav, dark mode  |
-| 6     | Distribution          | Bundled installers for macOS, Linux, Windows                   |
+| Phase | Focus                     | Key Deliverables                                                     |
+| ----- | ------------------------- | -------------------------------------------------------------------- |
+| 1     | Foundation (done)         | Tauri + React scaffold, git parser, timeline, features, analytics    |
+| 2     | Session Intelligence      | JSONL parser, live session monitoring, file watcher                   |
+| 3     | Prompt Correlation        | Prompt-to-commit linking, uncommitted work tracking, prompt explorer  |
+| 4     | Mojo ML Pipeline          | MAX Engine integration, code embeddings, DBSCAN clustering, similarity scoring |
+| 5     | Claude Enrichment         | API client, feature narratives, intent extraction, caching            |
+| 6     | Polish & Distribution     | Search, keyboard nav, export, bundled installers                      |
 
 ---
 
-## Roadmap (Post-MVP)
+## Roadmap
 
-- Real-time mode — watch a repo and update timeline as new commits land
+### Now (In Progress)
+- [x] Git history scanning — parse commits, classify change types, detect Claude Code co-authors
+- [x] Feature grouping — cluster commits into features by time windows
+- [x] Timeline view — color-coded commits with Claude Code badges
+- [x] Feature list — grouped feature cards with stats
+- [x] Analytics dashboard — most modified files, change type distribution, velocity
+- [ ] Claude Code session parser — read JSONL logs from `~/.claude/projects/`
+- [ ] Prompt-to-code correlation — link prompts to commits/file changes
+- [ ] Live session monitoring — file watcher on session directory
+
+### Next
+- Live Sessions view — real-time dashboard of active Claude Code sessions
+- Uncommitted work tracker — cross-reference session file touches with `git status`
+- Token usage analytics — per-session and per-project token consumption
+- Session timeline — overlay prompts on the commit timeline
+- Prompt search — full-text search across all session prompts
+
+### Future
+- Mojo ML pipeline — CodeBERT embeddings via MAX Engine, DBSCAN feature clustering, prompt-to-code similarity scoring
+- Claude API enrichment — generate feature narratives and intent summaries
 - Multi-repo support — compare Claude Code usage across projects
 - Team view — see which team members use Claude Code and how
-- Plugin system — custom preprocessors for other AI coding tools
 - Export — generate Markdown/PDF reports of feature history
-- Embedding explorer — interactive 3D visualization of code embedding space
-- Custom model training — fine-tune the change classifier on user's labeled data
-- Git blame integration — Claude Code contribution percentage per file/function
 - VS Code extension — lightweight version that runs inside VS Code
+- Plugin system — support for other AI coding tools (Cursor, Copilot, etc.)
+- Git blame integration — Claude Code contribution percentage per file/function
 
 ---
 
@@ -680,4 +824,4 @@ This is currently a personal project by Peyton Salvant. If you're interested in 
 
 ---
 
-*Built with Mojo, Claude, Tauri, and React.*
+*Built with Mojo, Rust, Tauri, React, and Claude Code itself.*

@@ -5,8 +5,8 @@ mod storage;
 mod types;
 
 use commands::{
-    enrich_features, export_report, get_feature_detail, get_function_history, get_project_data,
-    list_projects, scan_repository, search, update_settings,
+    delete_sessions, enrich_features, export_report, get_feature_detail, get_function_history,
+    get_project_data, get_sessions, list_projects, scan_repository, search, update_settings,
 };
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -20,6 +20,8 @@ pub fn run() {
             scan_repository,
             enrich_features,
             get_project_data,
+            get_sessions,
+            delete_sessions,
             list_projects,
             get_feature_detail,
             search,

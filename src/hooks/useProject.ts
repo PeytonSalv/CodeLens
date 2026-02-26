@@ -1,11 +1,16 @@
 import { useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useProjectStore } from "../store/projectStore";
-import type { Project, ProjectData } from "../lib/types";
+import type { Project, ProjectData, PromptSession } from "../lib/types";
 
 export function useProject() {
-  const { setProjects, setActiveProject, setIsScanning, setScanProgress } =
-    useProjectStore();
+  const {
+    activeProject,
+    setProjects,
+    setActiveProject,
+    setIsScanning,
+    setScanProgress,
+  } = useProjectStore();
 
   const loadProjects = useCallback(async () => {
     try {
@@ -35,15 +40,61 @@ export function useProject() {
       setIsScanning(true);
       setScanProgress(0, "Starting scan...");
       try {
-        await invoke("scan_repository", { path });
+        const data = await invoke<ProjectData>("scan_repository", { path });
+        setActiveProject(data);
       } catch (err) {
         console.error("Scan failed:", err);
       } finally {
         setIsScanning(false);
       }
     },
-    [setIsScanning, setScanProgress]
+    [setIsScanning, setScanProgress, setActiveProject]
   );
 
-  return { loadProjects, openProject, scanRepository };
+  const refreshSessions = useCallback(async () => {
+    if (!activeProject) return;
+    try {
+      const sessions = await invoke<PromptSession[]>("get_sessions", {
+        path: activeProject.repository.path,
+      });
+      setActiveProject({
+        ...activeProject,
+        promptSessions: sessions,
+        analytics: {
+          ...activeProject.analytics,
+          totalPromptsDetected: sessions.length,
+        },
+      });
+    } catch (err) {
+      console.error("Failed to refresh sessions:", err);
+    }
+  }, [activeProject, setActiveProject]);
+
+  const deleteSessions = useCallback(async () => {
+    if (!activeProject) return;
+    try {
+      const deleted = await invoke<number>("delete_sessions", {
+        path: activeProject.repository.path,
+      });
+      console.log(`Deleted ${deleted} session files`);
+      setActiveProject({
+        ...activeProject,
+        promptSessions: [],
+        analytics: {
+          ...activeProject.analytics,
+          totalPromptsDetected: 0,
+        },
+      });
+    } catch (err) {
+      console.error("Failed to delete sessions:", err);
+    }
+  }, [activeProject, setActiveProject]);
+
+  return {
+    loadProjects,
+    openProject,
+    scanRepository,
+    refreshSessions,
+    deleteSessions,
+  };
 }

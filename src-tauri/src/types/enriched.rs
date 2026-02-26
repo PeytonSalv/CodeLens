@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use super::{CommitData, FeatureCluster, PromptSession};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RepositoryInfo {
     pub path: String,
     pub name: String,
@@ -13,12 +14,14 @@ pub struct RepositoryInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DateRange {
     pub start: String,
     pub end: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProjectData {
     pub repository: RepositoryInfo,
     pub commits: Vec<CommitData>,
@@ -28,6 +31,15 @@ pub struct ProjectData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WeekVelocity {
+    pub week: String,
+    pub features: u32,
+    pub commits: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Analytics {
     pub total_features: u32,
     pub total_functions_modified: u32,
@@ -37,9 +49,11 @@ pub struct Analytics {
     pub most_modified_files: Vec<String>,
     pub most_modified_functions: Vec<String>,
     pub change_type_totals: HashMap<String, u32>,
+    pub velocity_by_week: Vec<WeekVelocity>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProjectSummary {
     pub id: String,
     pub name: String,
@@ -51,6 +65,7 @@ pub struct ProjectSummary {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ScanProgress {
     pub stage: String,
     pub progress: f32,
@@ -58,6 +73,7 @@ pub struct ScanProgress {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SearchResults {
     pub commits: Vec<CommitData>,
     pub features: Vec<FeatureCluster>,
@@ -65,6 +81,7 @@ pub struct SearchResults {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FunctionHistory {
     pub function_name: String,
     pub file_path: String,
@@ -72,6 +89,7 @@ pub struct FunctionHistory {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AppSettings {
     pub api_key: Option<String>,
     pub claude_model: String,

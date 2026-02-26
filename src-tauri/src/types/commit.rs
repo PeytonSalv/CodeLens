@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CommitData {
     pub hash: String,
     pub author_name: String,
@@ -17,6 +18,7 @@ pub struct CommitData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FileChange {
     pub path: String,
     pub lines_added: u32,
@@ -25,6 +27,7 @@ pub struct FileChange {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FunctionChange {
     pub name: String,
     pub lines_added: u32,
