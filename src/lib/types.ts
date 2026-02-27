@@ -112,6 +112,11 @@ export interface Analytics {
   mostModifiedFunctions: string[];
   changeTypeTotals: Record<ChangeType, number>;
   velocityByWeek: { week: string; features: number; commits: number }[];
+  // Phase 7: Extended analytics
+  avgIntentCompletion?: number;
+  repromptRate?: number;
+  patternCount?: number;
+  embeddingCoverage?: number;
 }
 
 export interface ProjectData {
@@ -126,6 +131,32 @@ export interface ProjectData {
   features: Feature[];
   promptSessions: PromptSession[];
   analytics: Analytics;
+}
+
+export interface IntentAnalysis {
+  promptText: string;
+  sessionId: string;
+  completionScore: number;
+  repromptCount: number;
+  gaps: string[];
+  outcome: "completed" | "partial" | "abandoned" | "reworked";
+  outcomeConfidence: number;
+  filesIntended: string[];
+  filesActual: string[];
+  intentSummary: string | null;
+}
+
+export interface DeveloperProfile {
+  preferredLanguages: string[];
+  avgSessionLengthMins: number;
+  repromptRate: number;
+  toolCallFrequency: number;
+  commonChangeTypes: Record<ChangeType, number>;
+  peakHours: number[];
+  avgCommitGranularity: number;
+  fileCouplings: Array<{ fileA: string; fileB: string; count: number }>;
+  totalSessions: number;
+  totalPrompts: number;
 }
 
 export interface ScanProgress {

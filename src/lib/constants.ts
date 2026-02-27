@@ -25,6 +25,8 @@ export const VIEWS = {
   FEATURES: "features",
   FUNCTIONS: "functions",
   PROMPTS: "prompts",
+  INTENT: "intent",
+  PATTERNS: "patterns",
   ANALYTICS: "analytics",
 } as const;
 

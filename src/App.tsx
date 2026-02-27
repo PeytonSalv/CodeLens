@@ -8,6 +8,8 @@ import { FeatureList } from "./components/features/FeatureList";
 import { FunctionTree } from "./components/functions/FunctionTree";
 import { PromptExplorer } from "./components/prompts/PromptExplorer";
 import { Dashboard } from "./components/analytics/Dashboard";
+import { IntentDashboard } from "./components/intent/IntentDashboard";
+import { PatternDashboard } from "./components/patterns/PatternDashboard";
 import { useProjectStore } from "./store/projectStore";
 import { VIEWS, type ViewType } from "./lib/constants";
 
@@ -25,6 +27,10 @@ export default function App() {
         return <FunctionTree />;
       case VIEWS.PROMPTS:
         return <PromptExplorer />;
+      case VIEWS.INTENT:
+        return <IntentDashboard />;
+      case VIEWS.PATTERNS:
+        return <PatternDashboard />;
       case VIEWS.ANALYTICS:
         return <Dashboard />;
       default:

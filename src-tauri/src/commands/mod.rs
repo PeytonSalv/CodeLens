@@ -1,3 +1,4 @@
+mod claude_api;
 mod enrich;
 mod project;
 mod scan;

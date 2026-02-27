@@ -7,7 +7,9 @@ const NAV_ITEMS: { key: ViewType; label: string; shortcut: string }[] = [
   { key: VIEWS.FEATURES, label: "Features", shortcut: "2" },
   { key: VIEWS.FUNCTIONS, label: "Functions", shortcut: "3" },
   { key: VIEWS.PROMPTS, label: "Prompts", shortcut: "4" },
-  { key: VIEWS.ANALYTICS, label: "Analytics", shortcut: "5" },
+  { key: VIEWS.INTENT, label: "Intent", shortcut: "5" },
+  { key: VIEWS.PATTERNS, label: "Patterns", shortcut: "6" },
+  { key: VIEWS.ANALYTICS, label: "Analytics", shortcut: "7" },
 ];
 
 interface SidebarProps {

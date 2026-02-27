@@ -1,3 +1,9 @@
 # pixi environments
 .pixi/*
 !.pixi/config.toml
+
+# Build output
+build/
+
+# ML models (downloaded on first run)
+src/models/

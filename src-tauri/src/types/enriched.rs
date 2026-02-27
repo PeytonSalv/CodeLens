@@ -50,6 +50,15 @@ pub struct Analytics {
     pub most_modified_functions: Vec<String>,
     pub change_type_totals: HashMap<String, u32>,
     pub velocity_by_week: Vec<WeekVelocity>,
+    // Phase 7: Extended analytics from ML pipeline
+    #[serde(default)]
+    pub avg_intent_completion: f32,
+    #[serde(default)]
+    pub reprompt_rate: f32,
+    #[serde(default)]
+    pub pattern_count: u32,
+    #[serde(default)]
+    pub embedding_coverage: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -97,6 +106,29 @@ pub struct AppSettings {
     pub embedding_batch_size: u32,
     pub clustering_eps: f32,
     pub clustering_min_samples: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeveloperProfile {
+    pub preferred_languages: Vec<String>,
+    pub avg_session_length_mins: f32,
+    pub reprompt_rate: f32,
+    pub tool_call_frequency: f32,
+    pub common_change_types: HashMap<String, u32>,
+    pub peak_hours: Vec<u32>,
+    pub avg_commit_granularity: f32,
+    pub file_couplings: Vec<FileCoupling>,
+    pub total_sessions: u32,
+    pub total_prompts: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FileCoupling {
+    pub file_a: String,
+    pub file_b: String,
+    pub count: u32,
 }
 
 impl Default for AppSettings {

@@ -64,3 +64,18 @@ pub struct TokenUsage {
     pub output_tokens: u64,
     pub cache_read_tokens: u64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IntentAnalysis {
+    pub prompt_text: String,
+    pub session_id: String,
+    pub completion_score: f32,
+    pub reprompt_count: u32,
+    pub gaps: Vec<String>,
+    pub outcome: String, // "completed", "partial", "abandoned", "reworked"
+    pub outcome_confidence: f32,
+    pub files_intended: Vec<String>,
+    pub files_actual: Vec<String>,
+    pub intent_summary: Option<String>,
+}

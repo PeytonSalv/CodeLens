@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::process::Command;
 
+use crate::mojo_bridge::{parser::parse_preprocessed_output, runner};
 use crate::types::{
     Analytics, CommitData, DateRange, FeatureCluster, FileChange, ProjectData, RepositoryInfo,
     WeekVelocity,
@@ -16,6 +17,41 @@ pub async fn scan_repository(path: String) -> Result<ProjectData, String> {
     // Validate .git directory exists
     if !repo_path.join(".git").exists() {
         return Err(format!("Not a git repository: {}", path));
+    }
+
+    // Try Mojo engine first, fall back to Rust pipeline
+    if runner::is_engine_available(None) {
+        match try_mojo_engine(&path) {
+            Ok(mut project_data) => {
+                // Mojo engine succeeded — augment with session data from Rust
+                let mut prompt_sessions = parse_sessions_for_repo(&path);
+                correlate_prompts_to_commits(&mut prompt_sessions, &project_data.commits);
+                link_prompts_to_features(
+                    &mut prompt_sessions,
+                    &project_data.commits,
+                    &mut project_data.features,
+                );
+                project_data.analytics.total_prompts_detected =
+                    prompt_sessions.len() as u32;
+                project_data.prompt_sessions = prompt_sessions;
+
+                // Optionally enrich with Claude API
+                if std::env::var("ANTHROPIC_API_KEY").is_ok() {
+                    match super::enrich::enrich_project_features(&mut project_data).await {
+                        Ok(count) if count > 0 => {
+                            log::info!("Enriched {} features with Claude API", count);
+                        }
+                        Ok(_) => {}
+                        Err(e) => log::warn!("Feature enrichment failed: {}", e),
+                    }
+                }
+
+                return Ok(project_data);
+            }
+            Err(e) => {
+                log::warn!("Mojo engine failed, falling back to Rust: {}", e);
+            }
+        }
     }
 
     // Extract repo name from path
@@ -138,13 +174,28 @@ pub async fn scan_repository(path: String) -> Result<ProjectData, String> {
     let mut analytics = analytics;
     analytics.total_prompts_detected = prompt_sessions.len() as u32;
 
-    Ok(ProjectData {
+    let mut project_data = ProjectData {
         repository,
         commits,
         features,
         prompt_sessions,
         analytics,
-    })
+    };
+
+    // Optionally enrich features with Claude API if key is configured
+    if std::env::var("ANTHROPIC_API_KEY").is_ok() {
+        match super::enrich::enrich_project_features(&mut project_data).await {
+            Ok(count) if count > 0 => {
+                log::info!("Enriched {} features with Claude API", count);
+            }
+            Ok(_) => {}
+            Err(e) => {
+                log::warn!("Feature enrichment failed: {}", e);
+            }
+        }
+    }
+
+    Ok(project_data)
 }
 
 fn classify_change_type(subject: &str) -> String {
@@ -414,6 +465,11 @@ fn compute_analytics(commits: &[CommitData], features: &[FeatureCluster]) -> Ana
         most_modified_functions,
         change_type_totals,
         velocity_by_week,
+        // Phase 7: Extended analytics (populated by Mojo engine or post-processing)
+        avg_intent_completion: 0.0,
+        reprompt_rate: 0.0,
+        pattern_count: 0,
+        embedding_coverage: 0.0,
     }
 }
 
@@ -649,4 +705,42 @@ fn detect_languages(commits: &[CommitData]) -> Vec<String> {
     let mut langs: Vec<(String, u32)> = lang_counts.into_iter().collect();
     langs.sort_by(|a, b| b.1.cmp(&a.1));
     langs.into_iter().map(|(l, _)| l).collect()
+}
+
+/// Try running the Mojo engine and parsing its output.
+/// Returns ProjectData on success, or an error string.
+fn try_mojo_engine(repo_path: &str) -> Result<ProjectData, String> {
+    let output_path = std::env::temp_dir()
+        .join(format!("codelens-{}.json", uuid::Uuid::new_v4()))
+        .to_string_lossy()
+        .to_string();
+
+    let models_dir = std::env::var("CODELENS_MODELS_DIR")
+        .unwrap_or_else(|_| "./mojo-engine/src/models".to_string());
+
+    // Enable verbose logging in debug builds or when CODELENS_VERBOSE is set
+    let verbose = cfg!(debug_assertions) || std::env::var("CODELENS_VERBOSE").is_ok();
+
+    runner::run_mojo_engine(
+        repo_path,
+        &output_path,
+        &models_dir,
+        verbose,
+        |progress| {
+            log::info!(
+                "[mojo] {}: {} ({})",
+                progress.stage,
+                progress.message,
+                progress.progress
+            );
+        },
+        None,
+    )?;
+
+    let result = parse_preprocessed_output(Path::new(&output_path));
+
+    // Clean up temp file
+    let _ = std::fs::remove_file(&output_path);
+
+    result
 }
