@@ -12,10 +12,11 @@ from .types.commit import _json_str
 
 
 
-fn parse_git_log(repo_path: String) raises -> List[CommitData]:
-    """Parse git log output into a list of CommitData.
+fn parse_git_log(repo_path: String, max_commits: Int = 2000) raises -> List[CommitData]:
+    """Parse git log output (metadata + numstat) into a list of CommitData.
 
-    Runs: git log --format=%H%x01%an%x01%ae%x01%aI%x01%s%x01%b%x00 --no-merges
+    Single subprocess call replaces the old N+1 approach (1 for log + N for diff-tree).
+    Runs: git log --format=%x00%H%x01%an%x01%ae%x01%aI%x01%s%x01%b --numstat --no-merges --max-count=N
     """
     from python import Python
 
@@ -24,8 +25,10 @@ fn parse_git_log(repo_path: String) raises -> List[CommitData]:
     var cmd = builtins.list()
     cmd.append("git")
     cmd.append("log")
-    cmd.append("--format=%H%x01%an%x01%ae%x01%aI%x01%s%x01%b%x00")
+    cmd.append("--format=%x00%H%x01%an%x01%ae%x01%aI%x01%s%x01%b")
+    cmd.append("--numstat")
     cmd.append("--no-merges")
+    cmd.append("--max-count=" + String(max_commits))
     var result = subprocess.run(
         cmd,
         capture_output=True,
@@ -39,7 +42,7 @@ fn parse_git_log(repo_path: String) raises -> List[CommitData]:
     var log_str = String(result.stdout)
     var commits = List[CommitData]()
 
-    # Split on null byte delimiter
+    # Split on null byte delimiter — each chunk starts with metadata, followed by numstat lines
     var entries = log_str.split("\x00")
     for ei in range(len(entries)):
         var entry_raw = String(entries[ei])
@@ -47,8 +50,17 @@ fn parse_git_log(repo_path: String) raises -> List[CommitData]:
         if entry == "":
             continue
 
-        # Split on SOH delimiter, max 6 fields
-        var fields = entry.split("\x01")
+        # The first line contains metadata (SOH-delimited), remaining lines are numstat
+        var lines = entry.split("\n")
+        if len(lines) == 0:
+            continue
+
+        var meta_line = String(lines[0]).strip()
+        if meta_line == "":
+            continue
+
+        # Split metadata on SOH delimiter
+        var fields = meta_line.split("\x01")
         if len(fields) < 5:
             continue
 
@@ -76,6 +88,43 @@ fn parse_git_log(repo_path: String) raises -> List[CommitData]:
         commit.change_type = classify_change_type(lower_subject)
         commit.change_type_confidence = 0.7
 
+        # Parse numstat lines (remaining lines after metadata)
+        var files = List[FileChange]()
+        for li in range(1, len(lines)):
+            var numstat_raw = String(lines[li])
+            var numstat_line = String(numstat_raw.strip())
+            if numstat_line == "":
+                continue
+
+            # Format: <added>\t<removed>\t<path>
+            var parts = numstat_line.split("\t")
+            if len(parts) < 3:
+                continue
+
+            var added_raw = String(parts[0])
+            var added_str = String(added_raw.strip())
+            var removed_raw = String(parts[1])
+            var removed_str = String(removed_raw.strip())
+            var path_raw = String(parts[2])
+            var file_path = String(path_raw.strip())
+
+            # Binary files show as '-' for lines
+            var lines_added: UInt32 = 0
+            var lines_removed: UInt32 = 0
+            if added_str != "-":
+                try:
+                    lines_added = UInt32(Int(added_str))
+                except:
+                    lines_added = 0
+            if removed_str != "-":
+                try:
+                    lines_removed = UInt32(Int(removed_str))
+                except:
+                    lines_removed = 0
+
+            files.append(FileChange(file_path, lines_added, lines_removed))
+
+        commit.files_changed = files^
         commits.append(commit^)
 
     return commits^

@@ -28,7 +28,6 @@ from .git_parser import (
     sort_commits_by_timestamp,
     detect_languages,
 )
-from .diff_extractor import extract_file_stats
 from .utils.json_writer import write_json_file
 from .embeddings import EmbeddingEngine, EmbeddingResult
 from .clustering import cluster_commits_semantic
@@ -235,7 +234,8 @@ fn run() raises:
     if len(args) < 3:
         print(
             "Usage: codelens-engine --repo <path> --output <path>"
-            " [--models-dir <path>] [--sessions-dir <path>] [--verbose|-v]"
+            " [--models-dir <path>] [--sessions-dir <path>]"
+            " [--max-commits <N>] [--verbose|-v]"
         )
         return
 
@@ -244,6 +244,7 @@ fn run() raises:
     var models_dir = String("./models")
     var sessions_dir = String("")
     var verbose = False
+    var max_commits: Int = 2000
 
     var i = 1
     while i < len(args):
@@ -258,6 +259,12 @@ fn run() raises:
             i += 2
         elif args[i] == "--sessions-dir" and i + 1 < len(args):
             sessions_dir = args[i + 1]
+            i += 2
+        elif args[i] == "--max-commits" and i + 1 < len(args):
+            try:
+                max_commits = Int(args[i + 1])
+            except:
+                max_commits = 2000
             i += 2
         elif args[i] == "--verbose" or args[i] == "-v":
             verbose = True
@@ -279,15 +286,17 @@ fn run() raises:
         + " output="
         + output_path
         + " models-dir="
-        + models_dir,
+        + models_dir
+        + " max-commits="
+        + String(max_commits),
         verbose,
     )
     if sessions_dir != "":
         log_debug("  sessions-dir=" + sessions_dir, verbose)
 
-    # Stage 1: Parse git log
+    # Stage 1: Parse git log (metadata + file stats in one subprocess call)
     emit_progress("parsing", 0.1, "Parsing git history...")
-    var commits = parse_git_log(repo_path)
+    var commits = parse_git_log(repo_path, max_commits)
     emit_progress("parsing", 0.3, "Parsed " + String(len(commits)) + " commits")
 
     # Log commit summary
@@ -308,13 +317,8 @@ fn run() raises:
             verbose,
         )
 
-    # Stage 2: Extract file stats (diff-tree)
-    emit_progress("diff", 0.35, "Extracting file change statistics...")
-    extract_file_stats(repo_path, commits)
-    emit_progress("diff", 0.5, "File stats extracted for all commits")
-
-    # Log diff stats
-    log_debug("--- Diff Extraction ---", verbose)
+    # Log diff stats (file stats already parsed from git log --numstat)
+    log_debug("--- File Stats ---", verbose)
     var total_files_changed: Int = 0
     var total_lines_added: Int = 0
     var total_lines_removed: Int = 0

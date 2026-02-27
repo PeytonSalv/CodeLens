@@ -721,11 +721,17 @@ fn try_mojo_engine(repo_path: &str) -> Result<ProjectData, String> {
     // Enable verbose logging in debug builds or when CODELENS_VERBOSE is set
     let verbose = cfg!(debug_assertions) || std::env::var("CODELENS_VERBOSE").is_ok();
 
+    let max_commits: u32 = std::env::var("CODELENS_MAX_COMMITS")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(2000);
+
     runner::run_mojo_engine(
         repo_path,
         &output_path,
         &models_dir,
         verbose,
+        max_commits,
         |progress| {
             log::info!(
                 "[mojo] {}: {} ({})",

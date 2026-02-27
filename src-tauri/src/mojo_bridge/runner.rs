@@ -73,6 +73,7 @@ pub fn run_mojo_engine(
     output_path: &str,
     models_dir: &str,
     verbose: bool,
+    max_commits: u32,
     on_progress: impl Fn(ScanProgress),
     app_handle: Option<&tauri::AppHandle>,
 ) -> Result<(), String> {
@@ -86,7 +87,9 @@ pub fn run_mojo_engine(
         .arg("--output")
         .arg(output_path)
         .arg("--models-dir")
-        .arg(models_dir);
+        .arg(models_dir)
+        .arg("--max-commits")
+        .arg(max_commits.to_string());
 
     if verbose {
         cmd.arg("--verbose");
