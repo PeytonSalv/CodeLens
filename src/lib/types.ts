@@ -5,7 +5,8 @@ export type ChangeType =
   | "performance"
   | "style"
   | "test"
-  | "documentation";
+  | "documentation"
+  | "chore";
 
 export interface Project {
   id: string;
@@ -131,6 +132,7 @@ export interface ProjectData {
   features: Feature[];
   promptSessions: PromptSession[];
   analytics: Analytics;
+  developerProfile?: DeveloperProfile | null;
 }
 
 export interface IntentAnalysis {
@@ -163,4 +165,67 @@ export interface ScanProgress {
   stage: string;
   progress: number;
   message: string;
+}
+
+export interface FeatureNodeData {
+  clusterId: number;
+  title: string;
+  autoLabel: string;
+  narrative: string | null;
+  changeType: ChangeType;
+  commitCount: number;
+  linesAdded: number;
+  linesRemoved: number;
+  fileCount: number;
+  avgConfidence: number;
+  feature: Feature;
+}
+
+export interface FileNodeData {
+  path: string;
+  fileName: string;
+  linesAdded: number;
+  linesRemoved: number;
+  functions: { name: string; linesAdded: number; linesRemoved: number }[];
+  featureIds: number[];
+}
+
+export type ExplorerNodeData = FeatureNodeData | FileNodeData;
+
+// ── Score Page types ──
+
+export type PatternType =
+  | "high_reprompt"
+  | "file_coupling"
+  | "bug_fix_decline"
+  | "granularity_improvement"
+  | "claude_adoption_growth";
+
+export type PatternStatus = "detected" | "approved" | "dismissed" | "fixed";
+
+export type PatternSeverity = "positive" | "negative" | "neutral";
+
+export interface DetectedPattern {
+  id: string;
+  type: PatternType;
+  title: string;
+  description: string;
+  metricBefore: string;
+  metricAfter: string;
+  severity: PatternSeverity;
+}
+
+export interface ScoreBreakdown {
+  adoption: number;
+  efficiency: number;
+  granularity: number;
+  velocity: number;
+  quality: number;
+  total: number;
+}
+
+export interface WeeklyScore {
+  week: string; // ISO week label e.g. "2026-W09"
+  score: number;
+  breakdown: ScoreBreakdown;
 }

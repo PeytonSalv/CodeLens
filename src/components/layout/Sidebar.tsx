@@ -4,20 +4,21 @@ import { useProject } from "../../hooks/useProject";
 
 const NAV_ITEMS: { key: ViewType; label: string; shortcut: string }[] = [
   { key: VIEWS.TIMELINE, label: "Timeline", shortcut: "1" },
-  { key: VIEWS.FEATURES, label: "Features", shortcut: "2" },
-  { key: VIEWS.FUNCTIONS, label: "Functions", shortcut: "3" },
-  { key: VIEWS.PROMPTS, label: "Prompts", shortcut: "4" },
-  { key: VIEWS.INTENT, label: "Intent", shortcut: "5" },
-  { key: VIEWS.PATTERNS, label: "Patterns", shortcut: "6" },
-  { key: VIEWS.ANALYTICS, label: "Analytics", shortcut: "7" },
+  { key: VIEWS.EXPLORER, label: "Explorer", shortcut: "2" },
+  { key: VIEWS.PROMPTS, label: "Prompts", shortcut: "3" },
+  { key: VIEWS.INTENT, label: "Intent", shortcut: "4" },
+  { key: VIEWS.PATTERNS, label: "Patterns", shortcut: "5" },
+  { key: VIEWS.ANALYTICS, label: "Analytics", shortcut: "6" },
+  { key: VIEWS.PROFILE, label: "Profile", shortcut: "7" },
 ];
 
 interface SidebarProps {
   currentView: ViewType;
   onViewChange: (view: ViewType) => void;
+  onBackToScore?: () => void;
 }
 
-export function Sidebar({ currentView, onViewChange }: SidebarProps) {
+export function Sidebar({ currentView, onViewChange, onBackToScore }: SidebarProps) {
   const { scanRepository } = useProject();
 
   const handleOpen = async () => {
@@ -41,6 +42,15 @@ export function Sidebar({ currentView, onViewChange }: SidebarProps) {
       </div>
 
       <nav className="flex-1 px-2 py-3 space-y-0.5">
+        {onBackToScore && (
+          <button
+            onClick={onBackToScore}
+            className="flex w-full items-center gap-1.5 rounded-md px-3 py-1.5 mb-2 text-[13px] text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200 transition-colors"
+          >
+            <span className="text-[11px]">&larr;</span>
+            <span>Score</span>
+          </button>
+        )}
         {NAV_ITEMS.map((item) => (
           <button
             key={item.key}
